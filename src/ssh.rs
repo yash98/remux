@@ -88,7 +88,13 @@ fn base_command(host: &HostConfig, default_timeout: Duration, tty: bool) -> Resu
         command.arg("-p").arg(port.to_string());
     }
     if tty {
-        command.arg("-t");
+        // `-tt` forces pty allocation even when ssh thinks it shouldn't;
+        // docker exec chains lose key input with a single `-t`.
+        command.arg(if host.container().is_some() {
+            "-tt"
+        } else {
+            "-t"
+        });
     }
     command.arg(target);
     if let Some(container) = host.container() {
@@ -469,7 +475,7 @@ mod tests {
         let command = super::base_command(&host, Duration::from_secs(5), true).unwrap();
         let args = command_args(&command);
 
-        assert!(args.contains(&"-t".to_string()));
+        assert!(args.contains(&"-tt".to_string()));
         assert!(args.contains(&"docker".to_string()));
     }
 
