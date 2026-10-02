@@ -1,6 +1,6 @@
 use crate::config::{Config, HostKind};
-use crate::host;
 use crate::fzf;
+use crate::host;
 use crate::{local, ssh};
 use anyhow::Result;
 

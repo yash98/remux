@@ -81,4 +81,3 @@ pub fn expand_docker_hosts(config: &Config) -> Vec<HostConfig> {
     }
     out
 }
-

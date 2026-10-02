@@ -123,6 +123,7 @@ mod tests {
                 session_roots: vec![target_root.to_string_lossy().to_string()],
                 ssh: None,
                 container: None,
+                container_filter: Vec::new(),
             }],
             watches: Vec::new(),
             sessions: Vec::new(),

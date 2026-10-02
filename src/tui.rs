@@ -599,6 +599,7 @@ impl App {
         self.host_rank(&left.host)
             .cmp(&self.host_rank(&right.host))
             .then_with(|| left.tmux_socket.cmp(&right.tmux_socket))
+            .then_with(|| left.container.cmp(&right.container))
             .then_with(|| left.tmux.session.cmp(&right.tmux.session))
             .then_with(|| {
                 compare_tmux_index(left.tmux.window.as_deref(), right.tmux.window.as_deref())
@@ -2093,6 +2094,7 @@ enum LiveTableRow<'a> {
 fn live_table_rows<'a>(rows: &[&'a SessionSnapshot]) -> Vec<LiveTableRow<'a>> {
     let mut table_rows = Vec::new();
     let mut current_host: Option<(String, Option<String>)> = None;
+    let mut current_container: Option<String> = None;
     let mut current_session: Option<String> = None;
     let mut current_window: Option<String> = None;
 
@@ -2104,6 +2106,19 @@ fn live_table_rows<'a>(rows: &[&'a SessionSnapshot]) -> Vec<LiveTableRow<'a>> {
                 depth: 0,
             });
             current_host = Some(host_key);
+            current_container = None;
+            current_session = None;
+            current_window = None;
+        }
+
+        if current_container.as_deref() != row.container.as_deref() {
+            if let Some(container) = &row.container {
+                table_rows.push(LiveTableRow::Group {
+                    label: format!("container {container}"),
+                    depth: 1,
+                });
+            }
+            current_container = row.container.clone();
             current_session = None;
             current_window = None;
         }
@@ -2111,7 +2126,7 @@ fn live_table_rows<'a>(rows: &[&'a SessionSnapshot]) -> Vec<LiveTableRow<'a>> {
         if current_session.as_deref() != Some(row.tmux.session.as_str()) {
             table_rows.push(LiveTableRow::Group {
                 label: format!("session {}", row.tmux.session),
-                depth: 1,
+                depth: 2,
             });
             current_session = Some(row.tmux.session.clone());
             current_window = None;
@@ -2122,7 +2137,7 @@ fn live_table_rows<'a>(rows: &[&'a SessionSnapshot]) -> Vec<LiveTableRow<'a>> {
         {
             table_rows.push(LiveTableRow::Group {
                 label: window_group_label(row),
-                depth: 2,
+                depth: 3,
             });
             current_window = Some(window.clone());
         }
@@ -3295,8 +3310,9 @@ fn row_search_text(row: &SessionSnapshot) -> String {
     let display_command = row.display_command().unwrap_or_default();
     let agent_hint = row.agent_hint.as_deref().unwrap_or("");
     format!(
-        "{} {} {} {} {} {} {} {} {} {} {}",
+        "{} {} {} {} {} {} {} {} {} {} {} {}",
         row.host,
+        row.container.as_deref().unwrap_or(""),
         row.tmux_socket.as_deref().unwrap_or(""),
         row.display_id,
         row.match_status.as_str(),
@@ -3590,6 +3606,7 @@ mod tests {
             display_id: "test".into(),
             raw_target: None,
             host: "local".into(),
+            container: None,
             tmux_socket: None,
             match_status,
             watch_id: None,
@@ -3737,20 +3754,41 @@ mod tests {
         let table_rows = live_table_rows(&rows);
 
         assert!(matches!(
-            &table_rows[0],
-            LiveTableRow::Group { label, depth: 0 } if label == "host local"
+                    &table_rows[0],
+                    LiveTableRow::Group { label, depth: 0 } if label == "host local"
         ));
         assert!(matches!(
             &table_rows[1],
-            LiveTableRow::Group { label, depth: 1 } if label == "session work"
+            LiveTableRow::Group { label, depth: 2 } if label == "session work"
         ));
         assert!(matches!(
             &table_rows[2],
-            LiveTableRow::Group { label, depth: 2 } if label == "window 0"
+            LiveTableRow::Group { label, depth: 3 } if label == "window 0"
         ));
         assert!(matches!(
             &table_rows[3],
             LiveTableRow::Pane { pane_index: 0, .. }
+        ));
+    }
+
+    #[test]
+    fn live_table_rows_group_by_container_when_present() {
+        let mut row = row_at("c21-test-container", "api", "0", "0", "pane");
+        row.container = Some("test-container".to_string());
+        let rows = vec![&row];
+        let table_rows = live_table_rows(&rows);
+
+        assert!(matches!(
+            &table_rows[0],
+            LiveTableRow::Group { label, depth: 0 } if label == "host c21-test-container"
+        ));
+        assert!(matches!(
+            &table_rows[1],
+            LiveTableRow::Group { label, depth: 1 } if label == "container test-container"
+        ));
+        assert!(matches!(
+            &table_rows[2],
+            LiveTableRow::Group { label, depth: 2 } if label == "session api"
         ));
     }
 
@@ -4048,6 +4086,7 @@ mod tests {
                 session_roots: Vec::new(),
                 ssh: None,
                 container: None,
+                container_filter: Vec::new(),
             }],
             watches: vec![
                 WatchConfig {

@@ -740,6 +740,7 @@ Host jump2
             kind: HostKind::Ssh,
             tmux_socket: None,
             session_roots: Vec::new(),
+            container_filter: Vec::new(),
             ssh: Some(SshConfig {
                 target: Some("cam@192.168.0.197".to_string()),
                 host: None,
