@@ -541,11 +541,13 @@ mod tests {
     }
 
     #[test]
-    fn inventory_format_uses_unit_separator_field_delimiter() {
-        // Anchor: if the format string is changed back to tab-separated,
-        // the parser's split heuristic and SSH transport assumptions need
-        // to be revisited together.
-        assert!(INVENTORY_FORMAT.contains(INVENTORY_FIELD_SEP));
+    fn inventory_format_uses_escaped_unit_separator_field_delimiter() {
+        // Anchor: the format must use the literal `\037` text, not a real
+        // control character — tmux inside containers mangles real control
+        // characters to `_`, but passes `\037` through untouched, and the
+        // parser accepts it via INVENTORY_FIELD_SEP_ESCAPED.
+        assert!(INVENTORY_FORMAT.contains(INVENTORY_FIELD_SEP_ESCAPED));
+        assert!(!INVENTORY_FORMAT.contains(INVENTORY_FIELD_SEP));
         assert!(!INVENTORY_FORMAT.contains('\t'));
     }
 

@@ -98,7 +98,8 @@ fn base_command(host: &HostConfig, default_timeout: Duration, tty: bool) -> Resu
         }
         command.arg(container);
     }
-    Ok(command)}
+    Ok(command)
+}
 
 fn apply_interactive_options(
     options: &mut BTreeMap<String, String>,
@@ -443,7 +444,7 @@ mod tests {
     fn docker_host_wraps_remote_command_in_docker_exec_shell() {
         let mut host = ssh_host(BTreeMap::new());
         host.kind = HostKind::Docker;
-        host.container = Some("yash-f5-tts".to_string());
+        host.container = Some("test-container".to_string());
 
         let mut command = super::base_command(&host, Duration::from_secs(5), false).unwrap();
         super::append_remote_command(&mut command, &host, "command -v tmux").unwrap();
@@ -453,7 +454,7 @@ mod tests {
             .iter()
             .position(|arg| arg == "docker")
             .expect("docker prefix");
-        assert_eq!(&args[pos..pos + 4], &["docker", "exec", "-i", "yash-f5-tts"]);
+        assert_eq!(&args[pos..pos + 3], &["docker", "exec", "test-container"]);
         let shell_pos = args.iter().position(|arg| arg == "/bin/sh").unwrap();
         assert_eq!(args[shell_pos + 1], "-c");
         assert_eq!(args[shell_pos + 2], "'command -v tmux'");
@@ -463,7 +464,7 @@ mod tests {
     fn docker_host_interactive_adds_tty_for_ssh() {
         let mut host = ssh_host(BTreeMap::new());
         host.kind = HostKind::Docker;
-        host.container = Some("yash-f5-tts".to_string());
+        host.container = Some("test-container".to_string());
 
         let command = super::base_command(&host, Duration::from_secs(5), true).unwrap();
         let args = command_args(&command);
