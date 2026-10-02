@@ -13,7 +13,10 @@ use std::fmt;
 // the row layout.
 pub const INVENTORY_FIELD_SEP: char = '\x1f';
 const INVENTORY_FIELD_SEP_ESCAPED: &str = "\\037";
-pub const INVENTORY_FORMAT: &str = "'#S\x1f#I\x1f#P\x1f#{pane_id}\x1f#{pane_pid}\x1f#{pane_current_command}\x1f#{pane_current_path}\x1f#{session_attached}\x1f#W\x1f#{pane_title}\x1f#{host_short}'";
+// Field separator: literal `\037` text. tmux passes it through untouched
+// (both directly and inside containers, where tmux mangles real control
+// characters to `_`), and INVENTORY_FIELD_SEP_ESCAPED parses it.
+pub const INVENTORY_FORMAT: &str = "'#S\\037#I\\037#P\\037#{pane_id}\\037#{pane_pid}\\037#{pane_current_command}\\037#{pane_current_path}\\037#{session_attached}\\037#W\\037#{pane_title}\\037#{host_short}'";
 
 pub type PaneCaptures = HashMap<String, Option<String>>;
 pub type PaneGitSnapshots = HashMap<String, Option<crate::git::RepoSnapshot>>;

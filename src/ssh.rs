@@ -92,10 +92,13 @@ fn base_command(host: &HostConfig, default_timeout: Duration, tty: bool) -> Resu
     }
     command.arg(target);
     if let Some(container) = host.container() {
-        command.arg("docker").arg("exec").arg("-i").arg(container);
+        command.arg("docker").arg("exec");
+        if tty {
+            command.arg("-it");
+        }
+        command.arg(container);
     }
-    Ok(command)
-}
+    Ok(command)}
 
 fn apply_interactive_options(
     options: &mut BTreeMap<String, String>,
@@ -380,6 +383,15 @@ fn append_remote_command(
     remote_command: &str,
 ) -> Result<()> {
     let ssh = host.ssh()?;
+    // docker exec is not a shell: shell builtins, redirections, and `;`
+    // command chains must run inside a shell in the container.
+    if host.container().is_some() {
+        command
+            .arg("/bin/sh")
+            .arg("-c")
+            .arg(shell_single_quote(remote_command));
+        return Ok(());
+    }
     match &ssh.remote_shell {
         Some(shell) if !shell.is_empty() => {
             // SSH concatenates all post-target args with spaces on the remote
@@ -428,22 +440,23 @@ mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn docker_host_wraps_remote_command_in_docker_exec() {
+    fn docker_host_wraps_remote_command_in_docker_exec_shell() {
         let mut host = ssh_host(BTreeMap::new());
         host.kind = HostKind::Docker;
         host.container = Some("yash-f5-tts".to_string());
 
-        let command = super::base_command(&host, Duration::from_secs(5), false).unwrap();
+        let mut command = super::base_command(&host, Duration::from_secs(5), false).unwrap();
+        super::append_remote_command(&mut command, &host, "command -v tmux").unwrap();
         let args = command_args(&command);
 
         let pos = args
             .iter()
             .position(|arg| arg == "docker")
             .expect("docker prefix");
-        assert_eq!(
-            &args[pos..pos + 4],
-            &["docker", "exec", "-i", "yash-f5-tts"]
-        );
+        assert_eq!(&args[pos..pos + 4], &["docker", "exec", "-i", "yash-f5-tts"]);
+        let shell_pos = args.iter().position(|arg| arg == "/bin/sh").unwrap();
+        assert_eq!(args[shell_pos + 1], "-c");
+        assert_eq!(args[shell_pos + 2], "'command -v tmux'");
     }
 
     #[test]
