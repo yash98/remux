@@ -1,4 +1,5 @@
 use crate::config::{Config, HostKind};
+use crate::host;
 use crate::fzf;
 use crate::{local, ssh};
 use anyhow::Result;
@@ -65,8 +66,7 @@ impl DoctorReport {
             check_fzf(),
         ];
 
-        let hosts: Vec<HostDoctorReport> = config
-            .hosts
+        let hosts: Vec<HostDoctorReport> = host::expand_docker_hosts(config)
             .iter()
             .map(|host| match host.kind {
                 HostKind::Local => HostDoctorReport {

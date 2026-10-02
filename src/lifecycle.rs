@@ -38,7 +38,7 @@ pub fn new_session(
     window_name: Option<&str>,
     verbose: bool,
 ) -> Result<()> {
-    config.host(host_id)?;
+    config.resolve_host(host_id)?;
     let snapshot = snapshot::snapshot_host(config, host_id)?;
     if snapshot.sessions.iter().any(|row| {
         row.raw_target.is_some()
@@ -56,7 +56,7 @@ pub fn new_session(
         .into());
     }
 
-    let host = config.host(host_id)?;
+    let host = config.resolve_host(host_id)?;
     let command = tmux::new_session_command(session_name, cwd, window_name, host.tmux_socket());
     run_lifecycle_command(config, host_id, &command, verbose)
         .with_context(|| format!("failed to create session `{host_id}/{session_name}`"))
@@ -135,7 +135,7 @@ pub fn rename_session(
     new_name: &str,
     verbose: bool,
 ) -> Result<()> {
-    config.host(host_id)?;
+    config.resolve_host(host_id)?;
     let snapshot = snapshot::snapshot_host(config, host_id)?;
     let old_exists = snapshot
         .sessions
@@ -156,7 +156,7 @@ pub fn rename_session(
         );
     }
 
-    let host = config.host(host_id)?;
+    let host = config.resolve_host(host_id)?;
     run_lifecycle_command(
         config,
         host_id,
@@ -167,7 +167,7 @@ pub fn rename_session(
 }
 
 pub fn new_pane(config: &Config, host_id: &str, session: &str, verbose: bool) -> Result<()> {
-    config.host(host_id)?;
+    config.resolve_host(host_id)?;
     let snapshot = snapshot::snapshot_host(config, host_id)?;
     let session_exists = snapshot
         .sessions
@@ -179,7 +179,7 @@ pub fn new_pane(config: &Config, host_id: &str, session: &str, verbose: bool) ->
         );
     }
 
-    let host = config.host(host_id)?;
+    let host = config.resolve_host(host_id)?;
     run_lifecycle_command(
         config,
         host_id,
@@ -197,7 +197,7 @@ fn send_keys_to_session(
     enter: bool,
     verbose: bool,
 ) -> Result<()> {
-    let host = config.host(host_id)?;
+    let host = config.resolve_host(host_id)?;
     let command = tmux::send_keys_command(session, keys, enter, host.tmux_socket());
     run_lifecycle_command(config, host_id, &command, verbose)
 }
@@ -335,28 +335,28 @@ fn run_lifecycle_command(
     command: &str,
     verbose: bool,
 ) -> Result<()> {
-    let host_config = config.host(host_id)?;
+    let host_config = config.resolve_host(host_id)?;
     if verbose {
         match host_config.kind {
             HostKind::Local => eprintln!("{command}"),
             HostKind::Ssh | HostKind::Docker => eprintln!("ssh {} -- {command}", host_id),
         }
     }
-    host::run(config, host_config, command).map(|_| ())
+    host::run(config, &host_config, command).map(|_| ())
 }
 
 impl KillTarget {
     fn command(&self, config: &Config) -> Result<(&str, String)> {
         match self {
             KillTarget::Session(target) => {
-                let host_config = config.host(&target.host)?;
+                let host_config = config.resolve_host(&target.host)?;
                 Ok((
                     &target.host,
                     tmux::kill_session_command(&target.session, host_config.tmux_socket()),
                 ))
             }
             KillTarget::Pane(target) => {
-                let host_config = config.host(&target.host)?;
+                let host_config = config.resolve_host(&target.host)?;
                 Ok((
                     &target.host,
                     tmux::kill_pane_command(target, host_config.tmux_socket()),
@@ -377,7 +377,7 @@ impl SendTarget {
     fn command(&self, config: &Config, keys: &str, enter: bool) -> Result<(&str, String)> {
         match self {
             SendTarget::Session(target) => {
-                let host_config = config.host(&target.host)?;
+                let host_config = config.resolve_host(&target.host)?;
                 Ok((
                     &target.host,
                     tmux::send_keys_command(
@@ -389,7 +389,7 @@ impl SendTarget {
                 ))
             }
             SendTarget::Pane(target) => {
-                let host_config = config.host(&target.host)?;
+                let host_config = config.resolve_host(&target.host)?;
                 Ok((
                     &target.host,
                     tmux::send_keys_command(

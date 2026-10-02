@@ -125,6 +125,11 @@ pub struct HostConfig {
     /// inside the container.
     #[serde(default)]
     pub container: Option<String>,
+    /// Substrings to match against `docker ps --format {{.Names}}` run on the
+    /// ssh target at config load; the entry expands into one docker host per
+    /// matching container (ids `<id>-<container>`).
+    #[serde(default)]
+    pub container_filter: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -247,6 +252,26 @@ impl Config {
             .ok_or_else(|| anyhow!("unknown host `{id}`"))
     }
 
+    /// Like `host`, but also resolves virtual docker hosts created at poll
+    /// time by `container_filter` (ids of the form `<id>-<container>`).
+    pub fn resolve_host(&self, id: &str) -> Result<HostConfig> {
+        if let Ok(host) = self.host(id) {
+            return Ok(host.clone());
+        }
+        for host in &self.hosts {
+            if host.kind != HostKind::Docker || host.container_filter.is_empty() {
+                continue;
+            }
+            if let Some(container) = id.strip_prefix(&format!("{}-", host.id)) {
+                let mut resolved = host.clone();
+                resolved.id = id.to_string();
+                resolved.container = Some(container.to_string());
+                return Ok(resolved);
+            }
+        }
+        bail!("unknown host `{id}`")
+    }
+
     pub fn watch(&self, id: &str) -> Result<IndexedWatch> {
         self.indexed_watches()
             .into_iter()
@@ -355,6 +380,7 @@ impl Config {
                             .as_deref()
                             .map(str::trim)
                             .is_none_or(str::is_empty)
+                        && host.container_filter.iter().all(|f| f.trim().is_empty())
                     {
                         bail!("docker host `{}` is missing container", host.id);
                     }

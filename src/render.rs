@@ -1,5 +1,6 @@
 use crate::cache::Cache;
 use crate::config::{Config, HostKind};
+use crate::host;
 use crate::sessions::SessionRollup;
 use crate::snapshot::{HostSnapshot, PaneDetail, SessionSnapshot, SnapshotStatus};
 use anyhow::Result;
@@ -13,8 +14,7 @@ pub fn hosts(config: &Config) -> Result<()> {
     let cache = cache_load.cache;
 
     let headers = &["HOST", "TYPE", "TARGET", "SOCKET", "STATUS", "LAST POLL"];
-    let rows: Vec<Vec<String>> = config
-        .hosts
+    let rows: Vec<Vec<String>> = host::expand_docker_hosts(config)
         .iter()
         .map(|host| {
             let raw_target = match host.kind {

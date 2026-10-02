@@ -218,7 +218,7 @@ pub fn snapshot_all(config: &Config) -> Result<Vec<HostSnapshot>> {
     let mut cache = cache_load.cache;
     let git_cache = global_git_cache();
     let mut snapshots = Vec::new();
-    for host in &config.hosts {
+    for host in host::expand_docker_hosts(config) {
         snapshots.push(snapshot_host_with_cache(
             config, &host.id, &mut cache, git_cache,
         )?);
@@ -282,9 +282,9 @@ pub fn capture_pane(
     if lines == 0 {
         bail!("capture lines must be greater than zero");
     }
-    let host_config = config.host(&target.host)?;
+    let host_config = config.resolve_host(&target.host)?;
     let command = tmux::capture_command(target, lines, color, host_config.tmux_socket());
-    host::run(config, host_config, &command)
+    host::run(config, &host_config, &command)
 }
 
 pub fn target_for_action(config: &Config, id_or_target: &str, action: &str) -> Result<PaneTarget> {
@@ -361,7 +361,7 @@ fn snapshot_host_with_cache(
     cache: &mut Cache,
     git_cache: &GitCache,
 ) -> Result<HostSnapshot> {
-    let host_config = config.host(host_id)?;
+    let host_config = config.resolve_host(host_id)?;
     let now = Utc::now();
 
     // Determine which cwds are cache-fresh so we can skip them in the git section.
@@ -378,7 +378,7 @@ fn snapshot_host_with_cache(
         &skip_git_cwds,
         host_config.tmux_socket(),
     );
-    match host::run(config, host_config, &command) {
+    match host::run(config, &host_config, &command) {
         Ok(output) => {
             let (panes, captures, git_map) = tmux::parse_inventory_with_captures(host_id, &output)?;
 
@@ -395,7 +395,7 @@ fn snapshot_host_with_cache(
 
             let mut build = SnapshotBuildContext {
                 config,
-                host_config,
+                host_config: &host_config,
                 captures: &captures,
                 git_map: &git_map,
                 git_cache,
@@ -422,7 +422,7 @@ fn snapshot_host_with_cache(
                 tmux_socket: host_config.tmux_socket().map(str::to_string),
                 status: SnapshotStatus::Unreachable,
                 collected_at: now,
-                sessions: unreachable_sessions(config, host_config, &message),
+                sessions: unreachable_sessions(config, &host_config, &message),
                 errors: vec![SnapshotError {
                     kind: "poll".to_string(),
                     message,
