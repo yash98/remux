@@ -339,7 +339,7 @@ fn run_lifecycle_command(
     if verbose {
         match host_config.kind {
             HostKind::Local => eprintln!("{command}"),
-            HostKind::Ssh => eprintln!("ssh {} -- {command}", host_id),
+            HostKind::Ssh | HostKind::Docker => eprintln!("ssh {} -- {command}", host_id),
         }
     }
     host::run(config, host_config, command).map(|_| ())

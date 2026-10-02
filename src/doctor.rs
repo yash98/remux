@@ -80,7 +80,12 @@ impl DoctorReport {
                         detail: "local host".to_string(),
                     }],
                 },
-                HostKind::Ssh => {
+                HostKind::Ssh | HostKind::Docker => {
+                    let kind = if host.kind == HostKind::Docker {
+                        "docker"
+                    } else {
+                        "ssh"
+                    };
                     let target = host
                         .ssh()
                         .ok()
@@ -114,7 +119,7 @@ impl DoctorReport {
                     let ok = checks.iter().all(|check| check.ok);
                     HostDoctorReport {
                         host: host.id.clone(),
-                        kind: "ssh".to_string(),
+                        kind: kind.to_string(),
                         target,
                         ok,
                         checks,

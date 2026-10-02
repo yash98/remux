@@ -91,6 +91,9 @@ fn base_command(host: &HostConfig, default_timeout: Duration, tty: bool) -> Resu
         command.arg("-t");
     }
     command.arg(target);
+    if let Some(container) = host.container() {
+        command.arg("docker").arg("exec").arg("-i").arg(container);
+    }
     Ok(command)
 }
 
@@ -425,6 +428,38 @@ mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
+    fn docker_host_wraps_remote_command_in_docker_exec() {
+        let mut host = ssh_host(BTreeMap::new());
+        host.kind = HostKind::Docker;
+        host.container = Some("yash-f5-tts".to_string());
+
+        let command = super::base_command(&host, Duration::from_secs(5), false).unwrap();
+        let args = command_args(&command);
+
+        let pos = args
+            .iter()
+            .position(|arg| arg == "docker")
+            .expect("docker prefix");
+        assert_eq!(
+            &args[pos..pos + 4],
+            &["docker", "exec", "-i", "yash-f5-tts"]
+        );
+    }
+
+    #[test]
+    fn docker_host_interactive_adds_tty_for_ssh() {
+        let mut host = ssh_host(BTreeMap::new());
+        host.kind = HostKind::Docker;
+        host.container = Some("yash-f5-tts".to_string());
+
+        let command = super::base_command(&host, Duration::from_secs(5), true).unwrap();
+        let args = command_args(&command);
+
+        assert!(args.contains(&"-t".to_string()));
+        assert!(args.contains(&"docker".to_string()));
+    }
+
+    #[test]
     fn ssh_options_default_to_non_interactive_timeout() {
         let host = ssh_host(BTreeMap::new());
 
@@ -694,6 +729,7 @@ Host jump2
                 options,
                 remote_shell: None,
             }),
+            container: None,
         }
     }
 

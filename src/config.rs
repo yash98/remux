@@ -120,6 +120,11 @@ pub struct HostConfig {
     #[serde(default)]
     pub session_roots: Vec<String>,
     pub ssh: Option<SshConfig>,
+    /// Container name for `type: docker` hosts. Commands are run as
+    /// `ssh <target> docker exec -i <container> <command>`, so tmux lives
+    /// inside the container.
+    #[serde(default)]
+    pub container: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -127,6 +132,7 @@ pub struct HostConfig {
 pub enum HostKind {
     Local,
     Ssh,
+    Docker,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -325,15 +331,32 @@ impl Config {
                         bail!("local host `{}` must not include ssh config", host.id);
                     }
                 }
-                HostKind::Ssh => {
+                HostKind::Ssh | HostKind::Docker => {
                     let ssh = host.ssh.as_ref().ok_or_else(|| {
-                        anyhow!("host `{}` is type ssh but is missing ssh config", host.id)
+                        anyhow!(
+                            "host `{}` is type {} but is missing ssh config",
+                            host.id,
+                            if host.kind == HostKind::Docker {
+                                "docker"
+                            } else {
+                                "ssh"
+                            }
+                        )
                     })?;
                     if ssh.target().is_none() {
                         bail!(
                             "host `{}` is type ssh but is missing ssh.target or ssh.host",
                             host.id
                         );
+                    }
+                    if host.kind == HostKind::Docker
+                        && host
+                            .container
+                            .as_deref()
+                            .map(str::trim)
+                            .is_none_or(str::is_empty)
+                    {
+                        bail!("docker host `{}` is missing container", host.id);
                     }
                 }
             }
@@ -423,6 +446,15 @@ impl HostConfig {
         self.ssh
             .as_ref()
             .ok_or_else(|| anyhow!("host `{}` is missing ssh config", self.id))
+    }
+
+    /// Container name for `type: docker` hosts; commands are wrapped in
+    /// `docker exec -i <container>` over ssh.
+    pub fn container(&self) -> Option<&str> {
+        self.container
+            .as_deref()
+            .map(str::trim)
+            .filter(|container| !container.is_empty())
     }
 }
 

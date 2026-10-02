@@ -16,7 +16,7 @@ pub fn attach_target(config: &Config, target: &PaneTarget, readonly: bool) -> Re
     let host = config.host(&target.host)?;
     match host.kind {
         HostKind::Local => attach_local(target, readonly, host.tmux_socket()),
-        HostKind::Ssh => {
+        HostKind::Ssh | HostKind::Docker => {
             let command = attach_command(target, readonly, host.tmux_socket());
             ssh::run_interactive(host, &command, config.poll.ssh_timeout)
                 .with_context(|| format!("failed to run remote tmux attach for `{target}`"))

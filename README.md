@@ -238,7 +238,8 @@ remux a [--readonly] <watch-id-or-pane-target>
 
 ## Configuration notes
 
-- hosts can be local or SSH
+- hosts can be local, SSH, or docker
+- a `type: docker` host runs tmux inside a container on an SSH host: set `container` and an `ssh` target, and every command runs as `ssh <target> docker exec -i <container> <command>`
 - `remux onboard` reuses your SSH aliases by default, so `ssh pi` can become `target: pi`
 - `session_roots` gives the TUI a bounded fzf directory list for new sessions
 - watches give important panes stable IDs

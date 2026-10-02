@@ -122,6 +122,7 @@ mod tests {
                 tmux_socket: None,
                 session_roots: vec![target_root.to_string_lossy().to_string()],
                 ssh: None,
+                container: None,
             }],
             watches: Vec::new(),
             sessions: Vec::new(),

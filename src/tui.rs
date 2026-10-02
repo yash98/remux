@@ -4047,6 +4047,7 @@ mod tests {
                 tmux_socket: None,
                 session_roots: Vec::new(),
                 ssh: None,
+                container: None,
             }],
             watches: vec![
                 WatchConfig {

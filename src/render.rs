@@ -19,7 +19,7 @@ pub fn hosts(config: &Config) -> Result<()> {
         .map(|host| {
             let raw_target = match host.kind {
                 HostKind::Local => "-".to_string(),
-                HostKind::Ssh => host
+                HostKind::Ssh | HostKind::Docker => host
                     .ssh()
                     .ok()
                     .and_then(|ssh| ssh.target())
@@ -29,6 +29,7 @@ pub fn hosts(config: &Config) -> Result<()> {
             let kind = match host.kind {
                 HostKind::Local => "local",
                 HostKind::Ssh => "ssh",
+                HostKind::Docker => "docker",
             };
             let socket = host
                 .tmux_socket()
